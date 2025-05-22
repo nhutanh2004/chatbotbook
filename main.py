@@ -74,3 +74,4 @@ if user_input:
 # Xóa lịch sử
 if st.sidebar.button("Clear Chat"):
     st.session_state.chat_history.clear()
+    st.rerun() 

@@ -13,6 +13,8 @@ small_talk = Route(
         "Good morning",
         "What's up?",
         "How’s your day?",
+        "are there anything in your history",
+        "I mean the history of your conversation",
         "How are you doing?",
         "Nice to meet you"
     ]

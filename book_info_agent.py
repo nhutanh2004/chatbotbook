@@ -152,7 +152,7 @@ def generate_final_response(book_info, wiki_data, library_data, user_input, chat
         response = model.generate_content(prompt)
         return response.text.strip()
     except Exception as e:
-        return f"Errol when finding book infomation: {str(e)}"
+        return f"Error when finding book infomation: {str(e)}"
 
 def get_book_info(query, chat_history=None):
     """Xử lý truy vấn sách với ngữ cảnh hội thoại"""
