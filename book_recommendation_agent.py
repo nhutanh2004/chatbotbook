@@ -5,6 +5,7 @@ import requests
 import google.generativeai as genai
 import random
 from dotenv import load_dotenv
+import urllib.parse
 
 # Load API key
 load_dotenv()
@@ -24,36 +25,49 @@ Example Output: {"book_name": null, "author_name": "Agatha Christie", "genre": n
 """
 
 def format_chat_history(chat_history):
+    """Chuyển đổi lịch sử chat từ Streamlit sang định dạng văn bản"""
     if not chat_history:
         return ""
-    return "\n".join(
-        f"{'User' if msg['role'] == 'user' else 'Assistant'}: {msg['content']}"
-        for msg in chat_history[-6:]
-    )
+    
+    history_text = ""
+    for msg in chat_history[-6:]:  # Lấy 6 tin nhắn gần nhất (khoảng 3 lượt hội thoại)
+        role = "User" if msg["role"] == "user" else "Assistant"
+        history_text += f"{role}: {msg['content']}\n"
+    return history_text
 
-def extract_book_info_gemini(user_input, chat_history=None):
-    history_text = format_chat_history(chat_history)
+def extract_book_info_gemini(user_input: str, chat_history=None):
+    """Trích xuất thông tin sách bằng Gemini, có xem xét lịch sử trò chuyện"""
+    history_text = format_chat_history(chat_history) if chat_history else ""
+    
     prompt = f"""
-    You are an intelligent assistant for extracting book-related information.
-    Respond only in JSON with keys: book_name, author_name, genre.
-    If not found, set the field to null.
-
-    Examples:
-    {examples}
-
-    Conversation history:
+    You are an intelligent assistant that extracts book-related information from user queries.
+    Consider this conversation history for context:
     {history_text}
+
+    Respond only with a single line of JSON like this:
+    {{"book_name": "...", "author_name": "...", "genre": "..."}}
+    If a field is unknown, use null.
+
+    {examples}
 
     Current User Input: {user_input}
     Only return JSON:
     """
-    response = model.generate_content(prompt)
-    match = re.search(r'\{.*\}', response.text.strip(), re.DOTALL)
-    return json.loads(match.group(0)) if match else {"error": "No valid JSON found"}
+    try:
+        response = model.generate_content(prompt)
+        text = response.text.strip()
+        
+        # Chỉ lấy phần JSON đầu tiên nếu có
+        match = re.search(r'\{.*\}', text, re.DOTALL)
+        if match:
+            return json.loads(match.group(0))
+        return {"error": "No valid JSON found"}
+    except Exception as e:
+        return {"error": f"Gemini error: {str(e)}"}
 
 def get_author_and_subject_from_book(book_name):
     """Lấy author và subjects từ Open Library thông qua work ID."""
-    search_url = f"https://openlibrary.org/search.json?q={book_name}"
+    search_url = f"https://openlibrary.org/search.json?q={urllib.parse.quote(book_name)}"
     try:
         response = requests.get(search_url, timeout=10)
         if response.status_code != 200:
@@ -78,9 +92,10 @@ def get_author_and_subject_from_book(book_name):
             return author, []
 
         detail_data = detail_response.json()
-        subjects = detail_data.get("subjects", [])[:5]  # Lấy tối đa 5 subject
-        print("author and subject retrieved",author, subjects)
-        return author, subjects
+        subjects = detail_data.get("subjects", [])
+        random_subjects = random.sample(subjects, min(3, len(subjects)))
+        print("author and subject retrieved",author, random_subjects)
+        return author, random_subjects
 
     except Exception as e:
         print(f"[ERROR] OpenLibrary: {e}")
@@ -88,7 +103,8 @@ def get_author_and_subject_from_book(book_name):
 
 
 def search_books_by_author(author_name):
-    url = f"https://openlibrary.org/search.json?author={author_name}"
+    url = f"https://openlibrary.org/search.json?author={urllib.parse.quote(author_name.lower())}"
+    print("author url", url)
     response = requests.get(url)
     if response.status_code != 200:
         return []
@@ -99,12 +115,10 @@ def search_books_by_author(author_name):
     return random.sample(books, min(10, len(books)))
 
 
-import requests
-import random
-
 def search_books_by_subject(subject):
     """Tìm sách theo một chủ đề từ Open Library."""
-    url = f"https://openlibrary.org/subjects/{subject.replace(' ', '_').lower()}.json"
+    url = f"https://openlibrary.org/subjects/{urllib.parse.quote(subject.lower())}.json?details=false"
+    print("subject url", url)
     response = requests.get(url)
 
     if response.status_code != 200:
@@ -112,25 +126,23 @@ def search_books_by_subject(subject):
 
     books = [
         {"title": book["title"], "author": book.get("authors", [{"name": "Unknown"}])[0]["name"]}
-        for book in response.json().get("works", [])
+        for book in response.json().get("works", [])[:30]
     ]
 
     return random.sample(books, min(10, len(books)))  # Random tối đa 10 sách
 
 
-
-
-def log_gemini_response(prompt, response_text):
-    """Lưu prompt & phản hồi từ Gemini vào file JSON."""
-    log_entry = {
-        "prompt_sent": prompt,
-        "response_received": response_text
-    }
+# def log_gemini_response(prompt, response_text):
+#     """Lưu prompt & phản hồi từ Gemini vào file JSON."""
+#     log_entry = {
+#         "prompt_sent": prompt,
+#         "response_received": response_text
+#     }
     
-    # Ghi vào file JSON
-    with open("gemini_log.json", "a", encoding="utf-8") as f:
-        json.dump(log_entry, f, ensure_ascii=False, indent=4)
-        f.write(",\n")  # Dấu phẩy để phân biệt các bản ghi
+#     # Ghi vào file JSON
+#     with open("gemini_log.json", "a", encoding="utf-8") as f:
+#         json.dump(log_entry, f, ensure_ascii=False, indent=4)
+#         f.write(",\n")  # Dấu phẩy để phân biệt các bản ghi
 
 
 def generate_final_response(book_info, recommendations, user_input, chat_history=None):
@@ -149,7 +161,6 @@ def generate_final_response(book_info, recommendations, user_input, chat_history
     {json.dumps(recommendations, indent=2)}
 
     Write a friendly, helpful, and natural-sounding response with recommendations.
-    Use line breaks between paragraphs for better readability.
     """
     response = model.generate_content(prompt)
     # log_gemini_response(prompt, response.text)
@@ -184,15 +195,15 @@ def recommend_books(user_input, chat_history=None):
 
 if __name__ == "__main__":
     test_queries = [
-        "Suggest books in the fantasy genre.",
-        "Recommend books like 'The Hobbit'.",
-        "Can you suggest a book by J.K. Rowling?",
-        "I want to read something similar to The Great Gatsby by F. Scott Fitzgerald.",
+        # "Suggest books in the fantasy genre.",
+        # "Recommend books like 'The Hobbit'.",
+        # "Can you suggest a book by J.K. Rowling?",
+        # "I want to read something similar to The Great Gatsby by F. Scott Fitzgerald.",
         "I loved Pride and Prejudice, any similar books?",
     ]
     chat_history = []
 
     for query in test_queries:
-        print(f"\n📝 User Query: {query}")
+        print(f"\n User Query: {query}")
         response = recommend_books(query, chat_history)
-        print(f"📚 Response: {response}")
+        print(f" Response: {response}")

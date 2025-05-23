@@ -27,6 +27,7 @@ book_info = Route(
         "Who wrote To Kill a Mockingbird?",
         "What is the plot of 1984?",
         "Author of Harry Potter?",
+        "Give me more suggestion",
         "When was Moby Dick published?",
         "What is Harry Potter about?",
         "Is Pride and Prejudice a romance novel?",
@@ -34,7 +35,7 @@ book_info = Route(
         "Summarize The Catcher in the Rye",
         "What genre is Dune?"
     ]
-)
+)   
 
 book_recommendation = Route(
     name="book_recommendation",
@@ -42,6 +43,7 @@ book_recommendation = Route(
         "Can you recommend a sci-fi book?",
         "I like fantasy novels, any suggestions?",
         "Suggest a book like Harry Potter",
+        "Which one of them focus on grow vegetables?"
         "What should I read next?",
         "Must-read mystery books?",
         "Give me a good fantasy recommendation",

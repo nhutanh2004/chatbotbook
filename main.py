@@ -48,6 +48,7 @@ def router(query: str, history):
     #     else:
     #         st.write("Chưa có sách nào được lưu.")
     else:
+        print("no route selected")
         return "Sorry, I don't have in it in my knowledge base. Can you try something else."
 
 # Nhận input từ người dùng

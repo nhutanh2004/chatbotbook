@@ -3,6 +3,7 @@ import requests
 import re
 import time
 import os
+import urllib.parse
 from dotenv import load_dotenv
 from concurrent.futures import ThreadPoolExecutor
 import google.generativeai as genai
@@ -67,7 +68,7 @@ def extract_book_info_gemini(user_input: str, chat_history=None):
 
 def search_open_library(book_name):
     """Tìm kiếm thông tin sách trên Open Library"""
-    search_url = f"https://openlibrary.org/search.json?q={book_name}"
+    search_url = f"https://openlibrary.org/search.json?q={urllib.parse.quote(book_name)}"
     try:
         response = requests.get(search_url, timeout=10)
         if response.status_code == 200:
@@ -198,6 +199,6 @@ if __name__ == "__main__":
     result = get_book_info(query)
     end_time = time.time()
 
-    print("\n📘 Response:")
+    print("\n Response:")
     print(result)
-    print(f"\n⏱ Execution Time: {end_time - start_time:.2f} seconds")
+    print(f"\n Execution Time: {end_time - start_time:.2f} seconds")
